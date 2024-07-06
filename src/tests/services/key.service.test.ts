@@ -77,6 +77,25 @@ const testVector3 = {
   }
 }
 
+const testVector4 = {
+  seed: '3ddd5602285899a946114506157c7997e5444528f3003f6134712147db19b678',
+  chains: {
+    m: {
+      xpub: 'xpub661MyMwAqRbcGczjuMoRm6dXaLDEhW1u34gKenbeYqAix21mdUKJyuyu5F1rzYGVxyL6tmgBUAEPrEz92mBXjByMRiJdba9wpnN37RLLAXa',
+      xprv: 'xprv9s21ZrQH143K48vGoLGRPxgo2JNkJ3J3fqkirQC2zVdk5Dgd5w14S7fRDyHH4dWNHUgkvsvNDCkvAwcSHNAQwhwgNMgZhLtQC63zxwhQmRv',
+    },
+    "m/0H": {
+      xpub: 'xpub69AUMk3qDBi3uW1sXgjCmVjJ2G6WQoYSnNHyzkmdCHEhSZ4tBok37xfFEqHd2AddP56Tqp4o56AePAgCjYdvpW2PU2jbUPFKsav5ut6Ch1m',
+      xprv: 'xprv9vB7xEWwNp9kh1wQRfCCQMnZUEG21LpbR9NPCNN1dwhiZkjjeGRnaALmPXCX7SgjFTiCTT6bXes17boXtjq3xLpcDjzEuGLQBM5ohqkao9G',
+    },
+    "m/0H/1H": {
+      xpub: 'xpub6BJA1jSqiukeaesWfxe6sNK9CCGaujFFSJLomWHprUL9DePQ4JDkM5d88n49sMGJxrhpjazuXYWdMf17C9T5XnxkopaeS7jGk1GyyVziaMt',
+      xprv: 'xprv9xJocDuwtYCMNAo3Zw76WENQeAS6WGXQ55RCy7tDJ8oALr4FWkuVoHJeHVAcAqiZLE7Je3vZJHxspZdFHfnBEjHqU5hG1Jaj32dVoS6XLT1',
+    },
+    // other chains
+  }
+}
+
 describe('KeyService', () => {
   const keyService = new KeyService()
 
@@ -543,6 +562,61 @@ describe('KeyService', () => {
     const xpubBase58 = keyService
       .createExtendedPublicKey(childPublicKey, derivedChainCode, 1, parentFingerprint, hardenedIndex)
     expect(xpubBase58).toBe(testVector3.chains['m/0H'].xpub)
+  })
+
+  test('create privateKey with test vector 4', () => {
+    const seed = Buffer.from(testVector4.seed, 'hex')
+    const { masterKey, chainCode } = keyService.generateMasterKey(seed)
+    const publicKey = keyService.createPublicKey(masterKey)
+    const xprvBase58 = keyService.createExtendedPrivateKey(masterKey, chainCode)
+    const xpubBase58 = keyService.createExtendedPublicKey(publicKey, chainCode)
+    expect(xprvBase58).toBe(testVector4.chains.m.xprv)
+    expect(xpubBase58).toBe(testVector4.chains.m.xpub)
+  })
+
+  test('derive child private key with test vector 4 (Chain m/0H)', () => {
+    const seed = Buffer.from(testVector4.seed, 'hex')
+    const { masterKey, chainCode } = keyService.generateMasterKey(seed)
+    const hardenedIndex = keyService.createHardenedIndex(0)
+    const { childKey, derivedChainCode } = keyService
+      .deriveChildPrivateKey(masterKey, chainCode, hardenedIndex)
+    const parentPublicKey = keyService.createPublicKey(masterKey)
+    const parentFingerprint = keyService.getParentFingerprint(parentPublicKey)
+    const xprvBase58 = keyService
+      .createExtendedPrivateKey(childKey, derivedChainCode, 1, parentFingerprint, hardenedIndex)
+    expect(xprvBase58).toBe(testVector4.chains['m/0H'].xprv)
+  })
+
+  test('derive child public key with test vector 4 (Chain m/0H)', () => {
+    const seed = Buffer.from(testVector4.seed, 'hex')
+    const { masterKey, chainCode } = keyService.generateMasterKey(seed)
+    const hardenedIndex = keyService.createHardenedIndex(0)
+    const { childKey, derivedChainCode } = keyService
+      .deriveChildPrivateKey(masterKey, chainCode, hardenedIndex)
+    const parentPublicKey = keyService.createPublicKey(masterKey)
+    const parentFingerprint = keyService.getParentFingerprint(parentPublicKey)
+    const childPublicKey = keyService.createPublicKey(childKey)
+    const xpubBase58 = keyService
+      .createExtendedPublicKey(childPublicKey, derivedChainCode, 1, parentFingerprint, hardenedIndex)
+    expect(xpubBase58).toBe(testVector4.chains['m/0H'].xpub)
+  })
+
+  test('derive child private key with test vector 4 (Chain m/0H/1H)', () => {
+    const seed = Buffer.from(testVector4.seed, 'hex')
+    const { masterKey, chainCode } = keyService.generateMasterKey(seed)
+    // derive m/0H
+    const hardIndex0 = keyService.createHardenedIndex(0)
+    const { childKey, derivedChainCode } = keyService
+      .deriveChildPrivateKey(masterKey, chainCode, hardIndex0)
+    // derive m/0H/1H
+    const hardIndex1 = keyService.createHardenedIndex(1)
+    const { childKey: childKey1, derivedChainCode: derivedChainCode1 } = keyService
+      .deriveChildPrivateKey(childKey, derivedChainCode, hardIndex1)
+    const parentPublicKey = keyService.createPublicKey(childKey)
+    const parentFingerprint = keyService.getParentFingerprint(parentPublicKey)
+    const xprvBase58 = keyService
+      .createExtendedPrivateKey(childKey1, derivedChainCode1, 2, parentFingerprint, hardIndex1)
+    expect(xprvBase58).toBe(testVector4.chains['m/0H/1H'].xprv)
   })
 
 })

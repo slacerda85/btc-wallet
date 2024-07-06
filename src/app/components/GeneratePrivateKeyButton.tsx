@@ -2,29 +2,39 @@
 
 import KeyService from '@/services/key/key.service';
 import { useState } from 'react';
+import Image from 'next/image';
 
 export default function GeneratePrivateKeyButton() {
-  const [privateKey, setPrivateKey] = useState<string>('')
-  const [publicKey, setPublicKey] = useState<string>('')
-  const [wif, setWif] = useState<string>('')
-  const [base58Wif, setBase58Wif] = useState<string>('')  
-  const [btcAddress, setBtcAddress] = useState<string>('')
-  const [mnemonic, setMnemonic] = useState<string>('')
-  const [seed, setSeed] = useState<string>('')
-
+  const [masterNode, setMasterNode] = useState<any>(null)
+  
   const handleGeneratePrivateKey = () => {
     const keyService = new KeyService()
-    const {xpub, xprv, mnemonic, seed } = keyService.createMasterNode()    
-    const wif = keyService.createWIF(xprv)
-    const base58Wif = keyService.encodeBase58(wif)
-    const btcAddress = keyService.generateBTCAddress(Buffer.from(xpub, 'hex'))
-    setWif(wif.toString('hex'))
-    setBase58Wif(base58Wif)
-    setPrivateKey(xprv)
-    setPublicKey(xpub)
-    setMnemonic(mnemonic)  
-    setSeed(seed.toString('hex'))
-    setBtcAddress(btcAddress)
+    const {
+      mnemonic,
+      seed,
+      masterKey,
+      xpub,
+      xprv,
+      wallet0,
+      wallet1    
+    } = keyService.createMasterNode()    
+    setMasterNode({
+      mnemonic,
+      seed,
+      masterKey: masterKey.toString('hex'),
+      xpub,
+      xprv,
+      wallet0: {
+        key: wallet0.key,
+        xpub: wallet0.xpub,
+        xprv: wallet0.xprv,
+      }, 
+      wallet1: {
+        key: wallet1.key,
+        xpub: wallet1.xpub,
+        xprv: wallet1.xprv,
+      }
+    })
   }
 
 return (
@@ -36,29 +46,27 @@ return (
       Generate Private Key
     </button>
     <div className='p-2 rounded bg-black/10 flex flex-col items-center justify-center'>  
-    <p className="text-gray-800">Seed: </p><p>
-      {seed}
-    </p>
+      <p className='text-lg font-bold'>Master Node</p>
+      <p className='text-sm'>mnemonic: {masterNode?.mnemonic}</p>
+      <p className='text-sm'>Bip39 seed: </p>
+      <p>{masterNode?.seed}</p>
+      <div className='text-sm'>masterKey: {masterNode?.masterKey}</div>
+      <div className='text-sm'>xpub: {masterNode?.xpub}</div>
+      <div className='text-sm'>Root key (xprv): {masterNode?.xprv}</div> 
+      <div className='p-2 rounded bg-black/20 flex flex-col items-center justify-center'>
+        <div className='text-lg font-bold'>Wallet 0 (chain m/0H)</div>
+        <div className='text-sm'>key: {masterNode?.wallet0.key}</div>
+        <div className='text-sm'>xpub: {masterNode?.wallet0.xpub}</div>
+        <div className='text-sm'>xprv: {masterNode?.wallet0.xprv}</div>
+      </div>
+      <div className='p-2 rounded bg-black/20 flex flex-col items-center justify-center'>
+        <div className='text-lg font-bold'>Wallet 1 (chain m/0H/1)</div>
+        <div className='text-sm'>key: {masterNode?.wallet1.key}</div>
+        <div className='text-sm'>xpub: {masterNode?.wallet1.xpub}</div>
+        <div className='text-sm'>xprv: {masterNode?.wallet1.xprv}</div>
+      </div>   
     </div>
-    <div className='p-2 rounded bg-black/10 flex flex-col items-center justify-center'>
-    <p className="text-gray-800">Private Key: </p><p>{privateKey}</p>
-    </div>
-    <div className='p-2 rounded bg-black/10 flex flex-col items-center justify-center'>
-    <p className="text-gray-800">Public key: </p><p>{publicKey}</p>
-    </div>
-    
-    <div className='p-2 rounded bg-black/10 flex flex-col items-center justify-center'>  
-    <p className="text-gray-800">WIF: </p><p>{wif}</p>
-    </div>
-    <div className='p-2 rounded bg-black/10 flex flex-col items-center justify-center'>
-    <p className="text-gray-800">Base58 WIF: </p><p>{base58Wif}</p>
-    </div>    
-    <div className='p-2 rounded bg-black/10 flex flex-col items-center justify-center'>
-    <p className="text-gray-800">BTC Address: </p><p>{btcAddress}</p>
-    </div>
-    <div className='p-2 rounded bg-black/10 flex flex-col items-center justify-center'>
-    <p className="text-gray-800">Mnemonic: </p><p>{mnemonic}</p>
-    </div>
+    <Image src='/derivation.png' width={800} height={500} alt={''} />
   </div>
 )
 

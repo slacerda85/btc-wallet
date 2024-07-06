@@ -233,13 +233,52 @@ export default class KeyService {
     const seed = this.generateSeedFromMnemonic(mnemonic)
     const { masterKey, chainCode } = this.generateMasterKey(seed)
     const xprv = this.createExtendedPrivateKey(masterKey, chainCode)
-    const xpub = this.createExtendedPublicKey(masterKey, chainCode)
+    console.log('xprv', xprv)
+    const publicKey = this.createPublicKey(masterKey)
+    const xpub = this.createExtendedPublicKey(publicKey, chainCode)
 
-    return {
+    // wallet 0
+    const hardenedIndex = this.createHardenedIndex(0)
+    const { childKey, derivedChainCode } = this
+      .deriveChildPrivateKey(masterKey, chainCode, hardenedIndex)
+    const parentPublicKey = this.createPublicKey(masterKey)
+    const parentFingerprint = this.getParentFingerprint(parentPublicKey)
+    const childPublicKey = this.createPublicKey(childKey)
+    const xprv0 = this
+      .createExtendedPrivateKey(childKey, derivedChainCode, 1, parentFingerprint, hardenedIndex)
+    const xpub0 = this
+      .createExtendedPublicKey(childPublicKey, derivedChainCode, 1, parentFingerprint, hardenedIndex)
+    
+      // wallet 1 (m/0H/1)
+    const { childKey: childKey1, derivedChainCode: derivedChainCode1 } = this
+      .deriveChildPrivateKey(childKey, derivedChainCode, 1)
+    const parentPublicKey1 = this.createPublicKey(childKey)
+    const parentFingerprint1 = this.getParentFingerprint(parentPublicKey1)
+    const childPublicKey1 = this.createPublicKey(childKey1)
+    const xprv1 = this
+      .createExtendedPrivateKey(childKey1, derivedChainCode1, 2, parentFingerprint1, 1)
+    const xpub1 = this
+      .createExtendedPublicKey(childPublicKey1, derivedChainCode1, 2, parentFingerprint1, 1)
+    
+
+
+    return {     
+      mnemonic,
+      seed: seed.toString('hex'),
+      masterKey,
       xpub,
       xprv,
-      mnemonic,
-      seed,
+      wallet0: {
+        key: childKey.toString('hex'),
+        xpub: xpub0,
+        xprv: xprv0,
+      },
+      wallet1: {
+        key: childKey1.toString('hex'),
+        xpub: xpub1,
+        xprv: xprv1,
+      }
+      
     }
   }
 

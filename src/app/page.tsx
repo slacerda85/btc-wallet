@@ -1,5 +1,4 @@
-import GeneratePrivateKeyButton from './components/GeneratePrivateKeyButton';
-// BITCOIN KEYS GENERATOR SCREEN
+import { KeyGenerator } from '@/components/component/KeyGenerator';
 
 export default function Home() {
 
@@ -7,7 +6,7 @@ export default function Home() {
   return (
     <main>
       <div>
-      <GeneratePrivateKeyButton />
+      <KeyGenerator />
       </div>
 
     </main>

@@ -1,9 +1,21 @@
 import KeyService from '@/services/key/key.service'
 
+type Chain = {
+  xpub: string;
+  xprv: string;
+};
+
+type Chains = Record<string, Chain>;
+
+type TestVector = {
+  seed: string;
+  chains: Chains;
+};
+
 // bitcoin test seeds
 // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#test-vectors
 
-const testVector1 = {
+const testVector1: TestVector = {
   seed: '000102030405060708090a0b0c0d0e0f',
   chains: {
     m: {
@@ -108,6 +120,8 @@ describe('KeyService', () => {
     expect(xprvBase58).toBe(testVector1.chains.m.xprv)
     expect(xpubBase58).toBe(testVector1.chains.m.xpub)
   })
+
+  
 
   test('deriveChildPrivateKey with test vector 1 ( Chain m/0h)', () => {
     const seed = Buffer.from(testVector1.seed, 'hex')

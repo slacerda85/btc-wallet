@@ -1,11 +1,11 @@
 import { Inter } from 'next/font/google'
 import { cn } from '@/lib/utils'
 import './globals.css'
+import { Metadata } from 'next'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Crypto Key Generator',
-  description: 'Generate a secure crypto key for your application',
-
+  description: 'Generate a secure crypto key for your application',  
 }
 
 const fontHeading = Inter({

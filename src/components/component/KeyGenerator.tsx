@@ -19,25 +19,18 @@ export function KeyGenerator() {
       masterKey,
       xpub,
       xprv,
-      wallet0,
-      wallet1    
+      walletBip44,
     } = keyService.createMasterNode()    
     setMasterNode({
       mnemonic,
       seed,
       masterKey: masterKey.toString('hex'),
       xpub,
-      xprv,
-      wallet0: {
-        key: wallet0.key,
-        xpub: wallet0.xpub,
-        xprv: wallet0.xprv,
-      }, 
-      wallet1: {
-        key: wallet1.key,
-        xpub: wallet1.xpub,
-        xprv: wallet1.xprv,
-      }
+      xprv,      
+      walletBip44: {        
+        xpub: walletBip44.xpubBase58,
+        xprv: walletBip44.xprvBase58,      
+      },
     })
   }
   return (
@@ -89,6 +82,26 @@ export function KeyGenerator() {
                 readOnly
                 rows={3}
                 value={masterNode?.xpub}
+                className="sm:col-span-1 md:col-span-2"
+              />
+            </div>
+            <div className="grid gap-1 sm:grid-cols-1 md:grid-cols-2">
+              <Label htmlFor="bip44-xpub">BIP44 Extended Public Key</Label>
+              <Textarea
+                id="bip44-xpub"
+                readOnly
+                rows={3}
+                value={masterNode?.walletBip44.xpub}
+                className="sm:col-span-1 md:col-span-2"
+              />
+            </div>
+            <div className="grid gap-1 sm:grid-cols-1 md:grid-cols-2">
+              <Label htmlFor="bip44-xprv">BIP44 Extended Private Key</Label>
+              <Textarea
+                id="bip44-xprv"
+                readOnly
+                rows={3}
+                value={masterNode?.walletBip44.xprv}
                 className="sm:col-span-1 md:col-span-2"
               />
             </div>

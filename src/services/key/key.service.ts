@@ -1,5 +1,5 @@
 // begin
-import { createHash, randomBytes, createHmac, BinaryLike } from 'crypto'
+import { createHash, randomBytes, createHmac } from 'crypto'
 import base58 from 'bs58'
 import secp256k1 from 'secp256k1'
 import wordList from 'bip39/src/wordlists/english.json'
@@ -9,14 +9,14 @@ import { entropyToMnemonic, mnemonicToSeedSync } from 'bip39'
 export default class KeyService {
 
   // Helper functions
-  generateMnemonic(numberOfWords: 12 | 24) {
+  createMnemonic(numberOfWords: 12 | 24) {
     const bytes = numberOfWords === 12 ? 16 : 32
     const entropy = this.createEntropy(bytes)
     const mnemonic = entropyToMnemonic(entropy, wordList)
     return mnemonic
   }
 
-  generateSeedFromMnemonic(mnemonic: string) {
+  createSeedFromMnemonic(mnemonic: string) {
     const seed = mnemonicToSeedSync(mnemonic)
     return seed
   }
@@ -26,7 +26,7 @@ export default class KeyService {
     return entropy
   }
 
-  generateExtendedSeed(seed: Buffer) {
+  createExtendedSeed(seed: Buffer) {
     const extendedSeed = createHmac('sha512', Buffer.from('Bitcoin seed', 'utf8')).update(seed).digest()
     return extendedSeed
   }
@@ -34,31 +34,21 @@ export default class KeyService {
   encodeBase58(data: Buffer) {
     return base58.encode(data)
   }
-
-  hash160(buffer: Buffer) {
-    const sha256Hash = createHash('sha256').update(buffer).digest();
-    return createHash('ripemd160').update(sha256Hash).digest();
-  }
-
+  
   sha256(buffer: Buffer) {
     return createHash('sha256').update(buffer).digest();
   }
 
+  hash160(buffer: Buffer) {
+    const sha256Hash = this.sha256(buffer);
+    return createHash('ripemd160').update(sha256Hash).digest();
+  }
+
+
   createChecksum(buffer: Buffer) {
     return this.sha256(this.sha256(buffer)).subarray(0, 4);
   }
-
-  createPublicKey(privateKey: Buffer): Buffer {
-    let publicKey
-
-    do {
-      publicKey = Buffer.from(secp256k1.publicKeyCreate(privateKey, true), 0, 33)
-    } while (!secp256k1.publicKeyVerify(publicKey))
-
-    // convert to buffer hex
-    return publicKey // Buffer.from(publicKey, 0, 33)
-  }
-
+  
   createHardenedIndex(index: number): number {
     const HARDENED_OFFSET = 0x80000000; // This is 2^31 in hexadecimal
     return index + HARDENED_OFFSET;
@@ -68,9 +58,36 @@ export default class KeyService {
     const hash1 = createHash('sha256').update(publicKey).digest();
     const hash2 = createHash('ripemd160').update(hash1).digest();
     const parentFingerprint = hash2.subarray(0, 4).readUInt32BE(0)
-    console.log('parentFingerprint', parentFingerprint)
     return parentFingerprint
   }
+
+  createMasterKey(seed: Buffer) {
+    let extendedSeed
+    let masterKey
+
+    do {
+      extendedSeed = this.createExtendedSeed(seed)
+      masterKey = extendedSeed.subarray(0, 32)
+    } while (!secp256k1.privateKeyVerify(masterKey))
+
+    const chainCode = extendedSeed.subarray(32)
+
+    return { masterKey, chainCode }
+  }
+
+  createPublicKey(privateKey: Buffer): Buffer {
+    let publicKey
+    // convert privateKey to UInt8Array
+    const privateKeyArray = new Uint8Array(privateKey, 0, 32)
+
+    do {
+      publicKey = Buffer.from(secp256k1.publicKeyCreate(privateKeyArray, true), 0, 33)
+    } while (!secp256k1.publicKeyVerify(publicKey))
+
+    // convert to buffer hex
+    return publicKey // Buffer.from(publicKey, 0, 33)
+  }
+
 
   createWIF(
     xprv: string,
@@ -97,7 +114,29 @@ export default class KeyService {
     return Buffer.concat([key, checksum])
   }
 
-  generateBTCAddress(publicKey: Buffer) {
+  deriveP2WPKHAddress(publicKey: Buffer) {
+    // P2WPKH address structure according to BIP141:
+    // 1. Witness Version (1 Byte)
+    // 2. Public Key Hash (20 Bytes)
+    // 3. Checksum (4 Bytes)
+
+    // hash the public key
+    const publicKeyHash = this.hash160(publicKey)
+
+    // add the witness version byte
+    const version = Buffer.allocUnsafe(1)
+    version.writeUInt8(0x00)
+
+    // add the version byte to the public key hash
+    const key = Buffer.concat([version, publicKeyHash])
+
+    // add checksum to the key
+    const checksum = this.createChecksum(key)
+    return Buffer.concat([key, checksum])
+
+  }
+
+  createBTCAddress(publicKey: Buffer) {
 
     // The address is derived from the public key 
     // using SHA256 and RIPEMD160
@@ -121,22 +160,21 @@ export default class KeyService {
     return base58.encode(address)
   }
 
-  createExtendedPrivateKey(masterKey: Buffer, chainCode: Buffer, depth: number = 0, parentFingerprint: number = 0, childNumber: number = 0) {
+  createExtendedPrivateKey(privateKey: Buffer, chainCode: Buffer, depth: number = 0, parentFingerprint: number = 0, childNumber: number = 0) {
 
     const xprvPrefix = 0x0488ADE4 // xprv
 
     const xprv = Buffer.allocUnsafe(78)
     xprv.writeUInt32BE(xprvPrefix, 0) // 4 bytes - xprv
-    xprv.writeUInt8(depth, 4) // 1 byte - depth
+    xprv.writeUInt8(depth, 4) // 1 byte - depth    
     xprv.writeUInt32BE(parentFingerprint, 5) // 4 bytes - parent fingerprint
     xprv.writeUInt32BE(childNumber, 9) // 4 bytes - child number
     chainCode.copy(xprv, 13) // 32 bytes - chain code
     xprv.writeUInt8(0, 45) // 1 byte - private key padding
-    masterKey.copy(xprv, 46) // 32 bytes - private key
+    privateKey.copy(xprv, 46) // 32 bytes - private key
     const xprvChecksum = this.createChecksum(xprv)
     const xprvAddress = Buffer.concat([xprv, xprvChecksum])
     const xprvBase58 = base58.encode(xprvAddress)
-    console.log('xprvBase58', xprvBase58)
     return xprvBase58
   }
 
@@ -170,19 +208,7 @@ export default class KeyService {
     return xpubBase58
   }
 
-  generateMasterKey(seed: Buffer) {
-    let extendedSeed
-    let masterKey
-
-    do {
-      extendedSeed = this.generateExtendedSeed(seed)
-      masterKey = extendedSeed.subarray(0, 32)
-    } while (!secp256k1.privateKeyVerify(masterKey))
-
-    const chainCode = extendedSeed.subarray(32)
-
-    return { masterKey, chainCode }
-  }
+  
 
   deriveChildPrivateKey(
     masterKey: Buffer,
@@ -201,7 +227,7 @@ export default class KeyService {
 
     const key = isHardened
       ? Buffer.concat([privateKeyPadding, masterKey])
-      : secp256k1.publicKeyCreate(masterKey, true)
+      : this.createPublicKey(masterKey)
 
     const data = Buffer.concat([key, indexBuffer])
     const hmac = createHmac('sha512', chainCode).update(data).digest()
@@ -219,66 +245,106 @@ export default class KeyService {
       throw new Error("Derived key is invalid (zero value).");
     }
 
-    console.log('ki', ki.toString(16).padStart(64, '0'))
-
     const childKey = Buffer.from(ki.toString(16).padStart(64, '0'), 'hex')
 
 
     return { childKey, derivedChainCode }
   }
 
+  convertPathToArray(path: string) {
+    const pathArray: number[] = []
+    const segments = path.split('/').slice(1)
+    // console.log('segments', segments)
+    segments.forEach(segment => {      
+      if (segment.endsWith("'")) {
+        pathArray.push(this.createHardenedIndex(parseInt(segment.slice(0, -1), 10)))
+      } else {
+        pathArray.push(parseInt(segment, 10))
+      }
+    })
+
+    return pathArray
+  }
+
+  // Automatically creates extended private and public keys for a given path and keypair
+  deriveFromPath(masterKey: Buffer, chainCode: Buffer, path: string) {
+    
+    if (path === 'm') {
+      const xprvBase58 = this.createExtendedPrivateKey(
+        masterKey,
+        chainCode,
+      )
+      const xpubBase58 = this.createExtendedPublicKey(
+        this.createPublicKey(masterKey),
+        chainCode,
+      )
+      return {
+        xprvBase58,
+        xpubBase58,
+      }
+    }
+    // split the path into segments
+    const segments = this.convertPathToArray(path)    
+    let key = masterKey
+    let chain = chainCode
+    let parentFingerprint = 0
+    let childNumber = 0
+    let depth = 0
+    
+    // iterate over the path segments of bip32
+    for (let i = 0; i < segments.length; i++) {
+      const index = segments[i]
+      const { childKey, derivedChainCode } = this.deriveChildPrivateKey(key, chain, index)
+      const parentPublicKey = this.createPublicKey(key)
+      parentFingerprint = this.getParentFingerprint(parentPublicKey)
+      key = childKey
+      chain = derivedChainCode
+      childNumber = index
+      depth++
+    }
+
+    const xprvBase58 = this.createExtendedPrivateKey(
+      key,
+      chain,
+      depth,
+      parentFingerprint,
+      childNumber
+    )
+
+    const xpubBase58 = this.createExtendedPublicKey(
+      this.createPublicKey(key),
+      chain,
+      depth,
+      parentFingerprint,
+      childNumber
+    )
+
+    return {
+      xprvBase58,
+      xpubBase58,
+    }
+
+  }
+
   createMasterNode() {
 
-    const mnemonic = this.generateMnemonic(12)
-    const seed = this.generateSeedFromMnemonic(mnemonic)
-    const { masterKey, chainCode } = this.generateMasterKey(seed)
+    const mnemonic = this.createMnemonic(12)
+    const seed = this.createSeedFromMnemonic(mnemonic)
+    const { masterKey, chainCode } = this.createMasterKey(seed)
     const xprv = this.createExtendedPrivateKey(masterKey, chainCode)
-    console.log('xprv', xprv)
     const publicKey = this.createPublicKey(masterKey)
     const xpub = this.createExtendedPublicKey(publicKey, chainCode)
-
-    // wallet 0
-    const hardenedIndex = this.createHardenedIndex(0)
-    const { childKey, derivedChainCode } = this
-      .deriveChildPrivateKey(masterKey, chainCode, hardenedIndex)
-    const parentPublicKey = this.createPublicKey(masterKey)
-    const parentFingerprint = this.getParentFingerprint(parentPublicKey)
-    const childPublicKey = this.createPublicKey(childKey)
-    const xprv0 = this
-      .createExtendedPrivateKey(childKey, derivedChainCode, 1, parentFingerprint, hardenedIndex)
-    const xpub0 = this
-      .createExtendedPublicKey(childPublicKey, derivedChainCode, 1, parentFingerprint, hardenedIndex)
     
-      // wallet 1 (m/0H/1)
-    const { childKey: childKey1, derivedChainCode: derivedChainCode1 } = this
-      .deriveChildPrivateKey(childKey, derivedChainCode, 1)
-    const parentPublicKey1 = this.createPublicKey(childKey)
-    const parentFingerprint1 = this.getParentFingerprint(parentPublicKey1)
-    const childPublicKey1 = this.createPublicKey(childKey1)
-    const xprv1 = this
-      .createExtendedPrivateKey(childKey1, derivedChainCode1, 2, parentFingerprint1, 1)
-    const xpub1 = this
-      .createExtendedPublicKey(childPublicKey1, derivedChainCode1, 2, parentFingerprint1, 1)
-    
-
-
-    return {     
+    // wallet bip44
+    const walletBip44 = this.deriveFromPath(masterKey, chainCode, "m/44'/0'/0'/0/0")
+        
+    return {
       mnemonic,
       seed: seed.toString('hex'),
       masterKey,
       xpub,
       xprv,
-      wallet0: {
-        key: childKey.toString('hex'),
-        xpub: xpub0,
-        xprv: xprv0,
-      },
-      wallet1: {
-        key: childKey1.toString('hex'),
-        xpub: xpub1,
-        xprv: xprv1,
-      }
-      
+      walletBip44
     }
   }
 

@@ -141,6 +141,6 @@ const testVector5: TestVector = {
   }
 }
 
-const testVectors: TestVector[] = [testVector1, testVector2, testVector3, testVector4, /* testVector5 */];
+const testVectors: TestVector[] = [testVector1, testVector2, testVector3, testVector4, testVector5];
 
 export default testVectors;

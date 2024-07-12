@@ -1,6 +1,6 @@
 'use client'
 
-import KeyService from '@/services/key/key.service';
+import KeyService from '@/services/bitcoin/key/key.service';
 import { useState } from 'react';
 
 import { Button } from "@/components/ui/button"
@@ -28,8 +28,8 @@ export function KeyGenerator() {
       xpub,
       xprv,      
       walletBip44: {        
-        xpub: walletBip44.xpubBase58,
-        xprv: walletBip44.xprvBase58,      
+        xpub: walletBip44.pubKey,
+        xprv: walletBip44.privKey,      
       },
     })
   }

@@ -1,39 +1,86 @@
-import KeyService from '@/services/key/key.service';
+import KeyService from '@/services/bitcoin/key/key.service';
 
 import testVectors from './test-vectors';
+import AddressService from '@/services/bitcoin/address/address.service';
 
 describe('KeyService', () => {
   const keyService = new KeyService();
 
-  testVectors.forEach((testVector, index) => {
+  describe('Generate BIP32 "HD Wallets" key pair for all vectors (xpub, xprv)', () => {
+    testVectors.forEach((testVector, index) => {
+      if (index === 4) return // skip BIP84 test vector
+      describe(`Test Vector ${index + 1}`, () => {
+        let masterKey: Buffer;
+        let chainCode: Buffer;
+        
+        if (testVector.seed !== undefined) {
+          const seed = Buffer.from(testVector.seed, 'hex');
+          const { masterKey: key, chainCode: chain } = keyService.createMasterKey(seed);
+          masterKey = key;
+          chainCode = chain;
+        } else if (testVector.mnemonic !== undefined) {
+          const seed = keyService.createSeedFromMnemonic(testVector.mnemonic);
+          const { masterKey: key, chainCode: chain } = keyService.createMasterKey(seed);
+          masterKey = key;
+          chainCode = chain;
+        }
 
-    describe(`Test Vector ${index + 1}`, () => {
-      let masterKey: Buffer;
-      let chainCode: Buffer;
-
-      if (testVector.seed !== undefined) {
-        const seed = Buffer.from(testVector.seed, 'hex');
-        const { masterKey: key, chainCode: chain } = keyService.createMasterKey(seed);
-        masterKey = key;
-        chainCode = chain;        
-      } else if (testVector.mnemonic !== undefined) {
-        const seed = keyService.createSeedFromMnemonic(testVector.mnemonic);
-        const { masterKey: key, chainCode: chain } = keyService.createMasterKey(seed);
-        masterKey = key;
-        chainCode = chain;
-      }
-
-
-      Object.keys(testVector.chains).forEach((path) => {
-        describe(`Path: ${path}`, () => {          
-          test('derive extended keypair (xpub, xprv)', () => {
-          const { xprvBase58, xpubBase58 } = keyService.deriveFromPath(masterKey, chainCode, path)               
-          expect(xprvBase58).toBe(testVector.chains[path].privKey)
-          expect(xpubBase58).toBe(testVector.chains[path].pubKey)
+        Object.keys(testVector.chains).forEach((path) => {
+          test(`Path: ${path}`, () => {
+            const { privKey, pubKey } = keyService.deriveFromPath(masterKey, chainCode, path)
+            expect(privKey).toBe(testVector.chains[path].privKey)
+            expect(pubKey).toBe(testVector.chains[path].pubKey)
           })
 
-        });
-      })
+          if (testVector.chains[path].address !== undefined) {
+            test('if vector has address, derive address from path', () => {
+              const { pubKey } = keyService.deriveFromPath(masterKey, chainCode, path)
+              const addressService = new AddressService();
+              const hrp = 'bc';
+              const enc = addressService.encodings.BECH32;
+              const address = addressService.encode(hrp, pubKey, enc)
+              expect(address).toBe(testVector.chains[path].address)
+            })
+          }
+        })
+      });
     });
-  });
+  })
+
+  /* describe('Generate keypair from BIP84 test vector', () => {
+    const testVector = testVectors[4];
+    let masterKey: Buffer;
+    let chainCode: Buffer;
+
+    if (testVector.seed !== undefined) {
+      const seed = Buffer.from(testVector.seed, 'hex');
+      const { masterKey: key, chainCode: chain } = keyService.createMasterKey(seed);
+      masterKey = key;
+      chainCode = chain;
+    } else if (testVector.mnemonic !== undefined) {
+      const seed = keyService.createSeedFromMnemonic(testVector.mnemonic);
+      const { masterKey: key, chainCode: chain } = keyService.createMasterKey(seed);
+      masterKey = key;
+      chainCode = chain;
+    }
+
+    Object.keys(testVector.chains).forEach((path) => {
+      test(`Path: ${path}`, () => {
+        const { privKey, pubKey } = keyService.deriveFromPath(masterKey, chainCode, path, true)
+        expect(privKey).toBe(testVector.chains[path].privKey)
+        expect(pubKey).toBe(testVector.chains[path].pubKey)
+      })
+
+      if (testVector.chains[path].address !== undefined) {
+        test('if vector has address, derive address from path', () => {
+          const { pubKey } = keyService.deriveFromPath(masterKey, chainCode, path)
+          const addressService = new AddressService();
+          const hrp = 'bc';
+          const enc = addressService.encodings.BECH32;
+          const address = addressService.encode(hrp, pubKey, enc)
+          expect(address).toBe(testVector.chains[path].address)
+        }) 
+      } 
+    })
+  })  */
 })

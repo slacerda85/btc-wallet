@@ -5,6 +5,9 @@ import secp256k1 from 'secp256k1'
 import wordList from 'bip39/src/wordlists/english.json'
 import { entropyToMnemonic, mnemonicToSeedSync } from 'bip39'
 
+type Purpose = string
+type PrivateKeyPrefix = 'xprv' | 'zprv'
+type PublicKeyPrefix = 'xpub' | 'zpub'
 
 export default class KeyService {
 
@@ -160,25 +163,27 @@ export default class KeyService {
     return base58.encode(address)
   }
 
-  createExtendedPrivateKey(privateKey: Buffer, chainCode: Buffer, depth: number = 0, parentFingerprint: number = 0, childNumber: number = 0) {
+  createExtendedPrivateKey(prefix: PrivateKeyPrefix, privateKey: Buffer, chainCode: Buffer, depth: number = 0, parentFingerprint: number = 0, childNumber: number = 0) {
 
     const xprvPrefix = 0x0488ADE4 // xprv
+    const zprvPrefix = 0x04b2430c // zprv
 
-    const xprv = Buffer.allocUnsafe(78)
-    xprv.writeUInt32BE(xprvPrefix, 0) // 4 bytes - xprv
-    xprv.writeUInt8(depth, 4) // 1 byte - depth    
-    xprv.writeUInt32BE(parentFingerprint, 5) // 4 bytes - parent fingerprint
-    xprv.writeUInt32BE(childNumber, 9) // 4 bytes - child number
-    chainCode.copy(xprv, 13) // 32 bytes - chain code
-    xprv.writeUInt8(0, 45) // 1 byte - private key padding
-    privateKey.copy(xprv, 46) // 32 bytes - private key
-    const xprvChecksum = this.createChecksum(xprv)
-    const xprvAddress = Buffer.concat([xprv, xprvChecksum])
+    const privKey = Buffer.allocUnsafe(78)
+    privKey.writeUInt32BE(xprvPrefix, 0) // 4 bytes - xprv
+    privKey.writeUInt8(depth, 4) // 1 byte - depth    
+    privKey.writeUInt32BE(parentFingerprint, 5) // 4 bytes - parent fingerprint
+    privKey.writeUInt32BE(childNumber, 9) // 4 bytes - child number
+    chainCode.copy(privKey, 13) // 32 bytes - chain code
+    privKey.writeUInt8(0, 45) // 1 byte - private key padding
+    privateKey.copy(privKey, 46) // 32 bytes - private key
+    const xprvChecksum = this.createChecksum(privKey)
+    const xprvAddress = Buffer.concat([privKey, xprvChecksum])
     const xprvBase58 = base58.encode(xprvAddress)
     return xprvBase58
   }
 
   createExtendedPublicKey(
+    prefix: PublicKeyPrefix,
     publicKey: Buffer,
     chainCode: Buffer,
     depth: number = 0,
@@ -194,6 +199,8 @@ export default class KeyService {
     }
 
     const xpubPrefix = 0x0488B21E // xpub
+    const zpubPrefix = 0x04b24746 // zpub
+
     const xpub = Buffer.allocUnsafe(78)
     xpub.writeUInt32BE(xpubPrefix, 0) // 4 bytes
     xpub.writeUInt8(depth, 4) // 1 byte - depth    
@@ -267,20 +274,29 @@ export default class KeyService {
   }
 
   // Automatically creates extended private and public keys for a given path and keypair
-  deriveFromPath(masterKey: Buffer, chainCode: Buffer, path: string) {
-    
+  deriveFromPath(masterKey: Buffer, chainCode: Buffer, path: string, p2wpkh: boolean = false) {
+    // set prefix to xprv or zprv according to path second segment,being '84' or '49'
+    const privPrefix: PrivateKeyPrefix = (path.split('/')[1] === '84' || p2wpkh) ? 'zprv' : 'xprv'
+    const pubPrefix: PublicKeyPrefix = (path.split('/')[1] === '84' || p2wpkh) ? 'zpub' : 'xpub'
+
     if (path === 'm') {
       const xprvBase58 = this.createExtendedPrivateKey(
+        privPrefix,
         masterKey,
         chainCode,
       )
       const xpubBase58 = this.createExtendedPublicKey(
+        pubPrefix,
         this.createPublicKey(masterKey),
         chainCode,
       )
+      if (p2wpkh) {
+        console.log('xprvBase58', xprvBase58)
+        console.log('xpubBase58', xpubBase58)
+      }
       return {
-        xprvBase58,
-        xpubBase58,
+        privKey: xprvBase58,
+        pubKey:  xpubBase58,
       }
     }
     // split the path into segments
@@ -304,6 +320,7 @@ export default class KeyService {
     }
 
     const xprvBase58 = this.createExtendedPrivateKey(
+      privPrefix,
       key,
       chain,
       depth,
@@ -312,6 +329,7 @@ export default class KeyService {
     )
 
     const xpubBase58 = this.createExtendedPublicKey(
+      pubPrefix,
       this.createPublicKey(key),
       chain,
       depth,
@@ -320,8 +338,8 @@ export default class KeyService {
     )
 
     return {
-      xprvBase58,
-      xpubBase58,
+      privKey: xprvBase58,
+      pubKey: xpubBase58,
     }
 
   }
@@ -331,9 +349,9 @@ export default class KeyService {
     const mnemonic = this.createMnemonic(12)
     const seed = this.createSeedFromMnemonic(mnemonic)
     const { masterKey, chainCode } = this.createMasterKey(seed)
-    const xprv = this.createExtendedPrivateKey(masterKey, chainCode)
+    const xprv = this.createExtendedPrivateKey('xprv' ,masterKey, chainCode)
     const publicKey = this.createPublicKey(masterKey)
-    const xpub = this.createExtendedPublicKey(publicKey, chainCode)
+    const xpub = this.createExtendedPublicKey('xpub', publicKey, chainCode)
     
     // wallet bip44
     const walletBip44 = this.deriveFromPath(masterKey, chainCode, "m/44'/0'/0'/0/0")

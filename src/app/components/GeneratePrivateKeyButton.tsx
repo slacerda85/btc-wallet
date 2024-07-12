@@ -1,6 +1,6 @@
 'use client'
 
-import KeyService from '@/services/key/key.service';
+import KeyService from '@/services/bitcoin/key/key.service';
 import { useState } from 'react';
 import Image from 'next/image';
 

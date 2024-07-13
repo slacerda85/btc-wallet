@@ -62,6 +62,7 @@ export function ExtendedKeysTabs({wallets}: {wallets?: Record<KeyBips, Wallet>})
                   readOnly
                 rows={2}
                 value={wallets ? wallets[key]?.privKey : ''}
+                className='font-mono'
                 />
                 <Label htmlFor={`${key}-public`}>Public Key</Label>
                 <Textarea
@@ -69,7 +70,8 @@ export function ExtendedKeysTabs({wallets}: {wallets?: Record<KeyBips, Wallet>})
                   id={`${key}-private`}
                   readOnly
                 rows={2}
-                value={wallets ? wallets[key]?.privKey : ''}
+                value={wallets ? wallets[key]?.pubKey : ''}
+                className='font-mono'
                 />
                 </Fragment>
               )

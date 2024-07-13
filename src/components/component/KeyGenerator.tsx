@@ -56,7 +56,7 @@ export function KeyGenerator() {
                 readOnly
                 // rows={1}
                 value={masterNode?.seed}
-                className="sm:col-span-1 md:col-span-2"
+                className="sm:col-span-1 md:col-span-2 font-mono"
               />
             </div>
             <div className="grid gap-1 sm:grid-cols-1 md:grid-cols-2">
@@ -66,7 +66,7 @@ export function KeyGenerator() {
                 readOnly
                 // rows={1}
                 value={masterNode?.masterKey?.toString('hex') || ''}
-                className="sm:col-span-1 md:col-span-2"
+                className="sm:col-span-1 md:col-span-2 font-mono"
               />
             </div>           
           </CardContent>

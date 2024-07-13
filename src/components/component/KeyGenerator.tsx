@@ -1,15 +1,16 @@
 'use client'
 
-import KeyService from '@/services/bitcoin/key/key.service';
+import KeyService, { MasterNodeResponse } from '@/services/bitcoin/key/key.service';
 import { useState } from 'react';
 
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { ExtendedKeysTabs } from './extended-keys-tabs';
 
 export function KeyGenerator() {
-  const [masterNode, setMasterNode] = useState<any>(null)
+  const [masterNode, setMasterNode] = useState<MasterNodeResponse>({} as MasterNodeResponse)
   
   const handleGeneratePrivateKey = () => {
     const keyService = new KeyService()
@@ -17,20 +18,13 @@ export function KeyGenerator() {
       mnemonic,
       seed,
       masterKey,
-      xpub,
-      xprv,
-      walletBip44,
+      wallets
     } = keyService.createMasterNode()    
     setMasterNode({
       mnemonic,
       seed,
-      masterKey: masterKey.toString('hex'),
-      xpub,
-      xprv,      
-      walletBip44: {        
-        xpub: walletBip44.pubKey,
-        xprv: walletBip44.privKey,      
-      },
+      masterKey,
+      wallets
     })
   }
   return (
@@ -50,7 +44,7 @@ export function KeyGenerator() {
               <Textarea
                 id="mnemonic"
                 readOnly
-                rows={3}
+                // rows={1}
                 value={masterNode?.mnemonic}
                 className="sm:col-span-1 md:col-span-2"
               />
@@ -60,53 +54,24 @@ export function KeyGenerator() {
               <Textarea
                 id="bip32-seed"
                 readOnly
-                rows={3}
+                // rows={1}
                 value={masterNode?.seed}
                 className="sm:col-span-1 md:col-span-2"
               />
             </div>
             <div className="grid gap-1 sm:grid-cols-1 md:grid-cols-2">
-              <Label htmlFor="bip32-root-key">BIP32 Root Key</Label>
+              <Label htmlFor="bip32-seed">BIP32 master key</Label>
               <Textarea
-                id="bip32-root-key"
+                id="bip32-seed"
                 readOnly
-                rows={3}
-                value={masterNode?.xprv}
+                // rows={1}
+                value={masterNode?.masterKey?.toString('hex') || ''}
                 className="sm:col-span-1 md:col-span-2"
               />
-            </div>
-            <div className="grid gap-1 sm:grid-cols-1 md:grid-cols-2">
-              <Label htmlFor="bip32-public-key">BIP32 Public Key</Label>
-              <Textarea
-                id="bip32-public-key"
-                readOnly
-                rows={3}
-                value={masterNode?.xpub}
-                className="sm:col-span-1 md:col-span-2"
-              />
-            </div>
-            <div className="grid gap-1 sm:grid-cols-1 md:grid-cols-2">
-              <Label htmlFor="bip44-xpub">BIP44 Extended Public Key</Label>
-              <Textarea
-                id="bip44-xpub"
-                readOnly
-                rows={3}
-                value={masterNode?.walletBip44.xpub}
-                className="sm:col-span-1 md:col-span-2"
-              />
-            </div>
-            <div className="grid gap-1 sm:grid-cols-1 md:grid-cols-2">
-              <Label htmlFor="bip44-xprv">BIP44 Extended Private Key</Label>
-              <Textarea
-                id="bip44-xprv"
-                readOnly
-                rows={3}
-                value={masterNode?.walletBip44.xprv}
-                className="sm:col-span-1 md:col-span-2"
-              />
-            </div>
+            </div>           
           </CardContent>
         </Card>
+        <ExtendedKeysTabs wallets={masterNode?.wallets} />
       </main>
     </div>
   )

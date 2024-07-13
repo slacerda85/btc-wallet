@@ -8,6 +8,19 @@ import { entropyToMnemonic, mnemonicToSeedSync } from 'bip39'
 type Purpose = string
 type PrivateKeyPrefix = 'xprv' | 'zprv'
 type PublicKeyPrefix = 'xpub' | 'zpub'
+export type KeyBips = 'bip32' | 'bip44' | 'bip49' | 'bip84' | 'bip86'
+
+export type Wallet = {
+  privKey: string;
+  pubKey: string;
+}
+
+export type MasterNodeResponse = {
+  mnemonic: string;
+  seed: string;
+  masterKey: Buffer;
+  wallets: Record<KeyBips, Wallet>;
+}
 
 export default class KeyService {
 
@@ -344,25 +357,46 @@ export default class KeyService {
 
   }
 
-  createMasterNode() {
+  createMasterNode(): MasterNodeResponse {
 
     const mnemonic = this.createMnemonic(12)
     const seed = this.createSeedFromMnemonic(mnemonic)
     const { masterKey, chainCode } = this.createMasterKey(seed)
+
+    // wallet bip32
     const xprv = this.createExtendedPrivateKey('xprv' ,masterKey, chainCode)
     const publicKey = this.createPublicKey(masterKey)
     const xpub = this.createExtendedPublicKey('xpub', publicKey, chainCode)
+    const bip32 = {
+      privKey: xprv,
+      pubKey: xpub
+    }
     
     // wallet bip44
-    const walletBip44 = this.deriveFromPath(masterKey, chainCode, "m/44'/0'/0'/0/0")
+    const bip44 = this.deriveFromPath(masterKey, chainCode, "m/44'/0'/0'/0/0")
+
+    // wallet bip49
+    const bip49 = this.deriveFromPath(masterKey, chainCode, "m/49'/0'/0'/0/0")
+
+    // wallet bip84
+    const bip84 = this.deriveFromPath(masterKey, chainCode, "m/84'/0'/0'/0/0", true)
+
+    // wallet bip86
+    const bip86 = this.deriveFromPath(masterKey, chainCode, "m/86'/0'/0'/0/0")
+
+    const wallets = {
+      bip32,
+      bip44,
+      bip49,
+      bip84,
+      bip86
+    }
         
     return {
       mnemonic,
       seed: seed.toString('hex'),
       masterKey,
-      xpub,
-      xprv,
-      walletBip44
+      wallets
     }
   }
 

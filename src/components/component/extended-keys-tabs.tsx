@@ -26,10 +26,10 @@ import { KeyBips, Wallet } from '@/services/bitcoin/key/key.service'
 import { Label } from '../ui/label'
 
 type ActiveTab = KeyBips
-const tabs: KeyBips[] = ["bip32", "bip44", "bip49", "bip84", 'bip86']
+const tabs: KeyBips[] = ['BIP32', 'BIP44', 'BIP49', 'BIP84', 'BIP86']
 
 export function ExtendedKeysTabs({wallets}: {wallets?: Record<KeyBips, Wallet>}) {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("bip32")
+  const [activeTab, setActiveTab] = useState<ActiveTab>("BIP32")
   return (
     
       <Card>

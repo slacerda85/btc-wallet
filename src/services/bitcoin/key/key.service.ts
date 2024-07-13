@@ -8,7 +8,7 @@ import { entropyToMnemonic, mnemonicToSeedSync } from 'bip39'
 type Purpose = string
 type PrivateKeyPrefix = 'xprv' | 'zprv'
 type PublicKeyPrefix = 'xpub' | 'zpub'
-export type KeyBips = 'bip32' | 'bip44' | 'bip49' | 'bip84' | 'bip86'
+export type KeyBips = 'BIP32' | 'BIP44' | 'BIP49' | 'BIP84' | 'BIP86'
 
 export type Wallet = {
   privKey: string;
@@ -385,11 +385,11 @@ export default class KeyService {
     const bip86 = this.deriveFromPath(masterKey, chainCode, "m/86'/0'/0'/0/0")
 
     const wallets = {
-      bip32,
-      bip44,
-      bip49,
-      bip84,
-      bip86
+      'BIP32': bip32,
+      'BIP44': bip44,
+      'BIP49': bip49,
+      'BIP84': bip84,
+      'BIP86': bip86
     }
         
     return {
